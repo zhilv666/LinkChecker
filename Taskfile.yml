@@ -1,0 +1,131 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+vars:
+  APP_NAME: linkchecker
+  # ENTRY: ./cmd/server
+  ENTRY: .
+  OUTPUT_DIR: bin
+  TMP: tmp
+  LOG_TIME:
+    sh: date -u '+%Y-%m-%d_%H-%M-%S'
+  VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
+  BUILD_TIME:
+    sh: date -u '+%Y-%m-%d %H:%M:%S'
+  GIT_AUTHOR: zhilv666
+  GIT_EMAIL: zhilv666@qq.com
+  GIT_COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo "unknown"
+  LDFLAGS: |
+    -s -w
+    -X "github.com/zhilv666/linkchecker/internal/conf.Version={{.VERSION}}"
+    -X "github.com/zhilv666/linkchecker/internal/conf.BuildAt={{.BUILD_TIME}}"
+    -X "github.com/zhilv666/linkchecker/internal/conf.GitAuthor={{.GIT_AUTHOR}}"
+    -X "github.com/zhilv666/linkchecker/internal/conf.GitEmail={{.GIT_EMAIL}}"
+    -X "github.com/zhilv666/linkchecker/internal/conf.GitCommit={{.GIT_COMMIT}}"
+
+tasks:
+  default:
+    desc: build
+    cmds:
+      - task: build
+
+  build:
+    desc: "构建程序"
+    cmds:
+      - echo "* 开始构建"
+      - go build -ldflags '{{.LDFLAGS}}' -o {{.OUTPUT_DIR}}/{{.APP_NAME}}.exe {{.ENTRY}}
+      - echo "* 构建成功, 输出：{{.OUTPUT_DIR}}/{{.APP_NAME}}.exe"
+    silent: true
+    deps: [tidy]
+
+  windows:
+    desc: "构建 Windows 平台"
+    cmds:
+      - echo "* 开始构建 Windows 平台"
+      - |
+        for arch in amd64 386 arm arm64; do
+          echo "* 正在构建 Windows $arch"
+          GOOS=windows GOARCH=$arch go build -ldflags '{{.LDFLAGS}}' -o {{.OUTPUT_DIR}}/{{.APP_NAME}}_windows_$arch.exe {{.ENTRY}}
+        done
+      - echo "* Windows 平台构建完成"
+    silent: true
+    deps: [tidy]
+
+  linux:
+    desc: "构建 Linux 平台"
+    cmds:
+      - echo "* 开始构建 Linux 平台"
+      - |
+        for arch in amd64 386 arm arm64; do
+          echo "* 正在构建 Linux $arch"
+          GOOS=linux GOARCH=$arch go build -ldflags '{{.LDFLAGS}}' -o {{.OUTPUT_DIR}}/{{.APP_NAME}}_linux_$arch {{.ENTRY}}
+        done
+      - echo "* Linux 平台构建完成"
+    silent: true
+    deps: [tidy]
+
+  macos:
+    desc: "构建 macOS 平台"
+    cmds:
+      - echo "* 开始构建 macOS 平台"
+      - |
+        for arch in amd64 arm64; do
+          echo "* 正在构建 macOS $arch"
+          GOOS=darwin GOARCH=$arch go build -ldflags '{{.LDFLAGS}}' -o {{.OUTPUT_DIR}}/{{.APP_NAME}}_darwin_$arch {{.ENTRY}}
+        done
+      - echo "* macOS 平台构建完成"
+    silent: true
+    deps: [tidy]
+    
+  upx:
+    desc: "压缩"
+    cmds:
+      - echo "* 开始压缩"
+      - |
+        if command -v upx > /dev/null 2>&1; then
+          for file in {{.OUTPUT_DIR}}/*; do
+            if [ -f "$file" ]; then
+              echo "* 压缩 $file..."
+              upx --best --lzma "$file" 2>/dev/null || echo "UPX 压缩失败: $file"
+            fi
+          done
+          echo "* 压缩完成"
+        else
+          echo "* UPX 没有找到, 跳过压缩"
+          echo "* 安装 UPX: https://upx.github.io/"
+        fi
+    silent: true
+    deps: [tidy]
+    
+  tidy:
+    desc: go mod tidy
+    cmds:
+      - go mod tidy 
+    silent: true
+
+  run:
+    desc: run
+    deps: [tidy]
+    cmds:
+      - go run {{.ENTRY}} | tee -a {{.TMP}}/{{.LOG_TIME}}.log
+    silent: true
+
+  debug:
+    desc: 调试代码
+    deps: [tidy]
+    cmds:
+      - go build -o {{.TMP}}/{{.APP_NAME}}_debug.exe -gcflags "all=-N -l" {{.ENTRY}}
+      - dlv exec ./{{.TMP}}/{{.APP_NAME}}_debug.exe --headless --listen=:2345 --api-version=2 --accept-multiclient
+    silent: true
+
+  clean:
+    desc: clean bin
+    cmds:
+      - echo "* 开始清理 bin / tmp 目录"
+      - rm -rf {{.BIN}}/*
+      - rm -rf {{.TMP}}/*
+      - echo "* 清理完成"
+    silent: true
