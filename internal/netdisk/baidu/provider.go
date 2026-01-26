@@ -3,12 +3,14 @@ package baidu
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/zhilv666/linkchecker/internal/net"
-	"github.com/zhilv666/linkchecker/internal/netdisk"
 	"net/url"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/zhilv666/linkchecker/internal/net"
+	"github.com/zhilv666/linkchecker/internal/netdisk"
+	"resty.dev/v3"
 
 	"github.com/antchfx/htmlquery"
 )
@@ -17,13 +19,18 @@ type BaiduProvider struct {
 	patternS       *regexp.Regexp
 	patternInit    *regexp.Regexp
 	patternContent *regexp.Regexp
+	client         *resty.Client
 }
 
-func New() *BaiduProvider {
+func New(client *resty.Client) *BaiduProvider {
+	if client == nil {
+		client = net.NewRestyClient()
+	}
 	return &BaiduProvider{
 		patternS:       regexp.MustCompile(`baidu\.com\/s\/([a-zA-Z0-9_-]+)`),
 		patternInit:    regexp.MustCompile(`surl=([a-zA-Z0-9_-]+)`),
 		patternContent: regexp.MustCompile(`locals\.mset\(([\s\S]*?)\);`),
+		client:         client,
 	}
 }
 
@@ -55,7 +62,8 @@ func (b *BaiduProvider) Check(rawUrl, password string) (*netdisk.ShareInfo, erro
 		return nil, fmt.Errorf("无法解析百度网盘 ID")
 	}
 
-	client := net.NewRestyClient()
+	// client := net.NewRestyClient()
+	client := b.client
 	client.SetHeaders(map[string]string{
 		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0",
 	})
@@ -119,6 +127,15 @@ func (b *BaiduProvider) Check(rawUrl, password string) (*netdisk.ShareInfo, erro
 					if t, err := time.Parse("2006-01-02 15:04", dateStr); err == nil {
 						expiredAt = &t
 					}
+				} else {
+					// 1. 获取当前时间上下文（主要是为了获取 Location，防止时区问题）
+					now := time.Now()
+
+					// 2. 构造新时间：(当前年份+100), 1月, 1日, 0时, 0分, 0秒, 0纳秒, 当前时区
+					t := time.Date(now.Year()+100, 1, 1, 0, 0, 0, 0, now.Location())
+
+					// 3. 赋值指针
+					expiredAt = &t
 				}
 			}
 		}
@@ -155,11 +172,16 @@ func (b *BaiduProvider) Check(rawUrl, password string) (*netdisk.ShareInfo, erro
 
 	file := dataResp.FileList[0]
 
+	var size int64 = 0
+	for _, file := range dataResp.FileList {
+		size += file.Size
+	}
+
 	info := &netdisk.ShareInfo{
 		Status:        netdisk.StatusValid,
 		Provider:      b.Name(),
 		Title:         file.ServerFilename,
-		Size:          netdisk.FormatSize(file.Size),
+		Size:          netdisk.FormatSize(size),
 		Author:        dataResp.Linkusername,
 		ExpiredAt:     expiredAt,
 		RawUrl:        rawUrl,

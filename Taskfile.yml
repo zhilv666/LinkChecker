@@ -3,13 +3,28 @@ version: '3'
 
 vars:
   APP_NAME: linkchecker
-  ENTRY: . # 或者 ./cmd/server
+  ENTRY: .
   BIN_DIR: bin
   TMP_DIR: tmp
   
+  # --- 全局 Git 信息 (关键修复：放这里才能被所有子任务读取) ---
   GIT_AUTHOR: zhilv666
   GIT_EMAIL: zhilv666@qq.com
+  VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
+  BUILD_TIME:
+    sh: date -u '+%Y-%m-%d %H:%M:%S'
+  GIT_COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo "unknown"
 
+  # --- 全局注入参数 (关键修复) ---
+  LDFLAGS: >-
+    -s -w
+    -X "github.com/zhilv666/linkchecker/internal/conf.Version={{.VERSION}}"
+    -X "github.com/zhilv666/linkchecker/internal/conf.BuildAt={{.BUILD_TIME}}"
+    -X "github.com/zhilv666/linkchecker/internal/conf.GitAuthor={{.GIT_AUTHOR}}"
+    -X "github.com/zhilv666/linkchecker/internal/conf.GitEmail={{.GIT_EMAIL}}"
+    -X "github.com/zhilv666/linkchecker/internal/conf.GitCommit={{.GIT_COMMIT}}"
 
 tasks:
   default:
@@ -17,35 +32,31 @@ tasks:
     cmds:
       - task: build
 
-  # --- 构建任务 ---
+  # --- 主构建入口 ---
   build:
     desc: "构建全平台程序并压缩"
-    deps: [tidy, clean] # 先清理，再整理依赖，再构建
-    silent: true
-    vars:
-      VERSION:
-        sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
-      BUILD_TIME:
-        sh: date -u '+%Y-%m-%d %H:%M:%S'
-      GIT_COMMIT:
-        sh: git rev-parse --short HEAD 2>/dev/null || echo "unknown"
-      LDFLAGS: >-
-        -s -w
-        -X "github.com/zhilv666/linkchecker/internal/conf.Version={{.VERSION}}"
-        -X "github.com/zhilv666/linkchecker/internal/conf.BuildAt={{.BUILD_TIME}}"
-        -X "github.com/zhilv666/linkchecker/internal/conf.GitAuthor={{.GIT_AUTHOR}}"
-        -X "github.com/zhilv666/linkchecker/internal/conf.GitEmail={{.GIT_EMAIL}}"
-        -X "github.com/zhilv666/linkchecker/internal/conf.GitCommit={{.GIT_COMMIT}}"
+    # 这里直接依赖具体的平台任务，既保留了独立任务，又实现了全量构建
+    deps: [tidy, clean, build:windows, build:linux, build:macos]
     cmds:
-      - echo "* 开始构建所有平台..."
-      # Windows
+      - echo "* 所有平台构建完成"
+      - task: upx
+    silent: true
+
+  # --- 平台专属任务 (你要的都在这里) ---
+  build:windows:
+    desc: "构建 Windows (amd64, 386, arm64)"
+    cmds:
       - task: build-target
         vars: {GOOS: windows, GOARCH: amd64}
       - task: build-target
         vars: {GOOS: windows, GOARCH: 386}
       - task: build-target
         vars: {GOOS: windows, GOARCH: arm64}
-      # Linux
+    silent: true
+
+  build:linux:
+    desc: "构建 Linux (amd64, arm64, 386, arm)"
+    cmds:
       - task: build-target
         vars: {GOOS: linux, GOARCH: amd64}
       - task: build-target
@@ -54,89 +65,97 @@ tasks:
         vars: {GOOS: linux, GOARCH: 386}
       - task: build-target
         vars: {GOOS: linux, GOARCH: arm}
-      # macOS
+    silent: true
+
+  build:macos:
+    desc: "构建 macOS (amd64, arm64)"
+    cmds:
       - task: build-target
         vars: {GOOS: darwin, GOARCH: amd64}
       - task: build-target
         vars: {GOOS: darwin, GOARCH: arm64}
-      
-      - echo "* 构建阶段完成"
-      - task: upx
-
-  # 这是一个内部复用的通用构建任务
-  build-target:
-    internal: true # 标记为内部任务，不显示在 task --list 中
     silent: true
+
+
+  # --- 核心构建逻辑 (复用) ---
+  build-target:
+    internal: true
     vars:
-      # 如果是 windows，后缀设为 .exe，否则为空
       EXT: '{{if eq .GOOS "windows"}}.exe{{end}}'
+      OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}_{{.GOOS}}_{{.GOARCH}}{{.EXT}}'
     cmds:
       - echo "  -> 正在构建 {{.GOOS}}/{{.GOARCH}}..."
+      # 这里的 .LDFLAGS 会自动读取全局变量，修复了版本号丢失的问题
       - >-
         GOOS={{.GOOS}} GOARCH={{.GOARCH}} 
         go build -ldflags '{{.LDFLAGS}}' 
-        -o {{.BIN_DIR}}/{{.APP_NAME}}_{{.GOOS}}_{{.GOARCH}}{{.EXT}} 
+        -o {{.OUTPUT}} 
         {{.ENTRY}}
+    silent: true
 
-  # --- 压缩任务 ---
+  # --- 压缩任务 (优化版) ---
   upx:
     desc: "压缩二进制文件 (智能跳过 macOS 和 Windows ARM)"
     cmds:
       - echo "* 开始压缩处理..."
       - |
-        if command -v upx > /dev/null 2>&1; then
-          for file in {{.BIN_DIR}}/*; do
-            if [ -f "$file" ]; then
-              case "$file" in
-                *darwin*)       echo "* [SKIP] 跳过 macOS (防止签名损坏): $file" ;;
-                *windows_arm*)  echo "* [SKIP] 跳过 Windows ARM (不支持): $file" ;;
-                *)
-                  echo "* [UPX]  压缩: $file"
-                  upx --best --lzma "$file" >/dev/null 2>&1 || echo "  ⚠️ 失败: $file"
-                  ;;
-              esac
-            fi
-          done
-        else
+        if ! command -v upx > /dev/null 2>&1; then
           echo "⚠️  未找到 UPX，跳过压缩。"
+          exit 0
         fi
+
+        for file in {{.BIN_DIR}}/*; do
+          [ -f "$file" ] || continue
+          
+          if [[ "$file" == *"darwin"* ]]; then
+             echo "* [SKIP] 跳过 macOS: $(basename $file)"
+          elif [[ "$file" == *"windows_arm"* ]]; then
+             echo "* [SKIP] 跳过 Win ARM: $(basename $file)"
+          else
+             echo "* [UPX]  压缩: $(basename $file)"
+             upx --best --lzma "$file" >/dev/null 2>&1 || echo "  ⚠️ 失败: $file"
+          fi
+        done
     silent: true
 
   # --- 辅助任务 ---
   tidy:
     desc: "整理 Go 依赖"
-    cmds:
-      - go mod tidy
+    cmds: [go mod tidy]
+    silent: true
+
+  test:
+    desc: "运行测试"
+    cmds: [go test ./...]
     silent: true
 
   run:
     desc: "本地运行 (带日志记录)"
     deps: [tidy]
     vars: 
-      LOG_TIME:
-        sh: date -u '+%Y-%m-%d_%H-%M-%S'
+      LOG_FILE: "{{.TMP_DIR}}/{{now | date '2006-01-02_15-04-05'}}.log"
     cmds:
       - mkdir -p {{.TMP_DIR}}
-      - go run {{.ENTRY}} | tee -a {{.TMP_DIR}}/{{.LOG_TIME}}.log
+      - echo "* 日志文件:~ {{.LOG_FILE}}"
+      - go run {{.ENTRY}} | tee -a {{.LOG_FILE}}
     silent: true
 
   debug:
     desc: "启动调试模式 (DLV)"
     deps: [tidy]
+    interactive: true
+    vars:
+      DEBUG_BIN: "{{.TMP_DIR}}/{{.APP_NAME}}_debug.exe"
     cmds:
       - mkdir -p {{.TMP_DIR}}
       - echo "* 正在编译调试版本..."
-      - go build -o {{.TMP_DIR}}/{{.APP_NAME}}_debug.exe -gcflags "all=-N -l" {{.ENTRY}}
+      - go build -o {{.DEBUG_BIN}} -gcflags "all=-N -l" {{.ENTRY}}
       - echo "* 调试服务启动中... 监听端口 :2345"
-      # 注意：echo 必须放在 dlv 之前，因为 dlv 是阻塞的
-      - dlv exec ./{{.TMP_DIR}}/{{.APP_NAME}}_debug.exe --headless --listen=:2345 --api-version=2 --accept-multiclient
+      - dlv exec {{.DEBUG_BIN}} --headless --listen=:2345 --api-version=2 --accept-multiclient
 
   clean:
     desc: "清理构建产物"
     cmds:
-      - echo "* 清理 {{.BIN_DIR}} 和 {{.TMP_DIR}}"
-      # 使用 Taskfile 内置的 rm 命令，跨平台兼容性更好
-      - rm -rf {{.BIN_DIR}}
-      - rm -rf {{.TMP_DIR}}
+      - echo "* 清理目录..."
+      - rm -rf {{.BIN_DIR}} {{.TMP_DIR}}
     silent: true
-    

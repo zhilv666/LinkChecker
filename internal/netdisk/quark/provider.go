@@ -8,15 +8,21 @@ import (
 
 	"github.com/zhilv666/linkchecker/internal/net"
 	"github.com/zhilv666/linkchecker/internal/netdisk"
+	"resty.dev/v3"
 )
 
 type QuarkProvider struct {
 	pattern *regexp.Regexp
+	client  *resty.Client
 }
 
-func New() *QuarkProvider {
+func New(client *resty.Client) *QuarkProvider {
+	if client == nil {
+		client = net.NewRestyClient()
+	}
 	return &QuarkProvider{
 		pattern: regexp.MustCompile(`\/s\/([^/?#]+)`),
+		client:  client,
 	}
 }
 
@@ -36,7 +42,8 @@ func (q *QuarkProvider) Check(rawUrl, password string) (*netdisk.ShareInfo, erro
 	}
 	shareID := matches[1]
 
-	client := net.NewRestyClient()
+	// client := net.NewRestyClient()
+	client := q.client
 	client.SetHeaders(map[string]string{
 		"User-Agent":   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0",
 		"Content-Type": "application/json",

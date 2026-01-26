@@ -1,0 +1,24 @@
+{
+  "status": 404,
+  "code": 41008,
+  "message": "需要提取码",
+  "timestamp": 1769060832,
+  "data": {
+    "subscribed": false,
+    "share_type": 0,
+    "author": {
+      "member_type": "SUPER_VIP",
+      "avatar_url": "http://image.quark.cn/o/uop/1Ht08/;;0,uop/g/uop/avatar/f72c83fc980d3976e111a7b58367cbd9.jpg;3,160",
+      "nick_name": "夸父*327"
+    },
+    "url_type": 2,
+    "expired_type": 1,
+    "expired_at": 4102416000000,
+    "title": "亚伦哥的AI实用课 (工作效率提升数倍)",
+    "file_num": 1
+  },
+  "metadata": {
+    "_t_group": "0:_s_vp:1",
+    "_g_group": "0:_s_vp:1;1:_s_ap:0;3:_s_vtp:1"
+  }
+}
