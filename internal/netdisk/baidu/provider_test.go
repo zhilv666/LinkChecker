@@ -197,7 +197,7 @@ func TestBaiduProvider_Check(t *testing.T) {
 					return
 				}
 
-				ts, err := time.Parse("2006-01-02 15:04", tt.wantExpired)
+				ts, err := time.Parse("2006-01-02 15:04:05", tt.wantExpired)
 				if tt.wantErr {
 					assert.Error(t, err)
 					return

@@ -27,8 +27,8 @@ func InitClient() {
 		).SetTLSClientConfig(
 		&tls.Config{
 			InsecureSkipVerify: false,
-		}).
-		SetProxy("http://127.0.0.1:9000")
+		})
+	// SetProxy("http://127.0.0.1:9000")
 	NoRedirectClient.SetHeader("user-agent", UserAgent)
 
 	RestyClient = NewRestyClient()
@@ -42,7 +42,7 @@ func NewRestyClient() *resty.Client {
 		SetTLSClientConfig(
 			&tls.Config{
 				InsecureSkipVerify: false,
-			}).
-		SetProxy("http://127.0.0.1:9000")
+			})
+		// SetProxy("http://127.0.0.1:9000")
 	return client
 }

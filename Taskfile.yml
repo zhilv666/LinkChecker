@@ -13,7 +13,7 @@ vars:
   VERSION:
     sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
   BUILD_TIME:
-    sh: date -u '+%Y-%m-%d %H:%M:%S'
+    sh: date '+%Y-%m-%d %H:%M:%S'
   GIT_COMMIT:
     sh: git rev-parse --short HEAD 2>/dev/null || echo "unknown"
 
@@ -136,7 +136,7 @@ tasks:
       LOG_FILE: "{{.TMP_DIR}}/{{now | date '2006-01-02_15-04-05'}}.log"
     cmds:
       - mkdir -p {{.TMP_DIR}}
-      - echo "* 日志文件:~ {{.LOG_FILE}}"
+      - echo "* 日志文件:- {{.LOG_FILE}}"
       - go run {{.ENTRY}} | tee -a {{.LOG_FILE}}
     silent: true
 
@@ -158,4 +158,33 @@ tasks:
     cmds:
       - echo "* 清理目录..."
       - rm -rf {{.BIN_DIR}} {{.TMP_DIR}}
+    silent: true
+
+  commit:
+    desc: "提交代码到本地 (不推送) (用法: task commit -- '提交信息' [TAG=v1.0.0])"
+    preconditions:
+      - sh: '[ -n "{{.CLI_ARGS}}" ]'
+        msg: "❌ 错误: 必须提供提交信息！\n   用法: task commit -- '修复了bug' [TAG=v1.0.1]"
+    vars:
+      MSG: '{{.CLI_ARGS}}'
+    cmds:
+      - echo "* 正在执行 Git Add ..."
+      - git add .
+      
+      - echo "* 正在提交：{{.MSG}}"
+      - git commit -m "{{.MSG}}"
+
+      - echo "✅ 代码已提交到本地仓库"
+      - task: tag
+        vars: {TAG: "{{.TAG}}"}
+    silent: true
+
+  tag:
+    desc: "创建本地标签 (不推送)"
+    status:
+      - '[ -z "{{.TAG}}" ]'
+    cmds:
+      - echo "* 发现新标签:- {{.TAG}}, 正在创建本地标签..."
+      - git tag "{{.TAG}}"
+      - echo "✅ 本地标签 {{.TAG}} 创建成功"
     silent: true
