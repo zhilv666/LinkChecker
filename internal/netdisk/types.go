@@ -36,6 +36,24 @@ func (s ShareStatus) String() string {
 	}
 }
 
+// [新增] 用于前端样式的 Helper 方法
+func (s ShareStatus) Class() string {
+	switch s {
+	case StatusValid:
+		// 绿色背景
+		return "badge-success text-white"
+	case StatusDeleted, StatusExpired, StatusBanned:
+		// 红色背景 (这几种都是不可用状态)
+		return "badge-error text-white"
+	case StatusNeedPassword:
+		// 黄色警告
+		return "badge-warning"
+	default:
+		// 默认灰色
+		return "badge-ghost"
+	}
+}
+
 // ShareInfo 包含解析后的详情信息
 type ShareInfo struct {
 	Status        ShareStatus `json:"status"`

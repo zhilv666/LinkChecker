@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zhilv666/linkchecker/internal/net"
 	"github.com/zhilv666/linkchecker/internal/netdisk"
+	"github.com/zhilv666/linkchecker/pkg/request"
 	"resty.dev/v3"
 )
 
@@ -18,7 +18,7 @@ type QuarkProvider struct {
 
 func New(client *resty.Client) *QuarkProvider {
 	if client == nil {
-		client = net.NewRestyClient()
+		client = request.NewRestyClient()
 	}
 	return &QuarkProvider{
 		pattern: regexp.MustCompile(`\/s\/([^/?#]+)`),

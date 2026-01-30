@@ -1,5 +1,6 @@
 package conf
 
+// 构建信息
 var (
 	Version   string = "unknown"
 	BuildAt   string = "unknown"

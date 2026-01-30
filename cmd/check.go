@@ -9,11 +9,11 @@ import (
 	"sync"
 
 	"github.com/spf13/cobra"
-	"github.com/zhilv666/linkchecker/internal/net"
 	"github.com/zhilv666/linkchecker/internal/netdisk"
 	"github.com/zhilv666/linkchecker/internal/netdisk/baidu"
 	"github.com/zhilv666/linkchecker/internal/netdisk/quark"
 	"github.com/zhilv666/linkchecker/pkg/cache"
+	"github.com/zhilv666/linkchecker/pkg/request"
 )
 
 var checkCmd = &cobra.Command{
@@ -41,7 +41,7 @@ var checkCmd = &cobra.Command{
 			return
 		}
 
-		client := net.NewRestyClient()
+		client := request.NewRestyClient()
 		manager := netdisk.NewManager(
 			cache,
 			baidu.New(client),
@@ -156,7 +156,7 @@ func processFileMode(cache cache.Cache, input, output string, parallel int) {
 		go func(targetUrl, targetPwd string) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			client := net.NewRestyClient()
+			client := request.NewRestyClient()
 			manager := netdisk.NewManager(
 				cache,
 				baidu.New(client),
@@ -198,7 +198,7 @@ func processFileMode(cache cache.Cache, input, output string, parallel int) {
 
 func init() {
 	checkCmd.Flags().StringP("file", "f", "", "输入的 csv 文件路径, 无默认值\ncsv 文件格式如下:\n 链接,密码")
-	checkCmd.Flags().StringP("output", "o", "./result.csv", "输出的文件路径, 默认值: ./result.csv")
-	checkCmd.Flags().IntP("parallel", "p", 1, "并发检测数量 (默认 1)")
+	checkCmd.Flags().StringP("output", "o", "./result.csv", "输出的文件路径")
+	checkCmd.Flags().IntP("parallel", "p", 1, "并发检测数量")
 	rootCmd.AddCommand(checkCmd)
 }
