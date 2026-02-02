@@ -16,3 +16,9 @@ type CheckResp struct {
 	URL       string     `gorm:"index;type:text" json:"url"`
 	PWD       string     `gorm:"type:text" json:"pwd"`
 }
+
+type ListReq struct {
+	Page    int    `json:"page"`
+	Size    int    `json:"size"`
+	Keyword string `json:"Keyword"`
+}

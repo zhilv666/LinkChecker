@@ -66,6 +66,6 @@ func (ls *LinkService) CheckOne(url, password string) (*model.LinkRecord, error)
 	return lr, err
 }
 
-func (ls *LinkService) ListWithPageSize(page, size int) ([]model.LinkRecord, int64, error) {
-	return ls.linkDB.List(page, size)
+func (ls *LinkService) ListWithPageSize(page, size int, keyword string) ([]model.LinkRecord, int64, error) {
+	return ls.linkDB.List(page, size, keyword)
 }

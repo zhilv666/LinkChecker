@@ -42,7 +42,8 @@ func Init(cfg configs.Database) error {
 	if zapL.Core().Enabled(0) { // Check DebugLevel (Warning: zap levels are negative/complex, simple mapping below)
 		// 简单策略：生产环境只记录慢查询和错误，开发环境记录所有 SQL
 		// 这里我们设为 Warn，但在开发时你可能想改为 logger.Info
-		gormLogger.LogLevel = logger.Warn
+		// gormLogger.LogLevel = logger.Warn
+		gormLogger.LogLevel = logger.Info
 		gormLogger.SlowThreshold = 200 * time.Millisecond
 	} else {
 		gormLogger.LogLevel = logger.Error

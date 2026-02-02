@@ -51,6 +51,8 @@ func SetupRouter(cfg *configs.Config) *gin.Engine {
 	}
 	router.StaticFS("/assets", http.FS(subAssets))
 
+	router.StaticFileFS("/favicon.ico", "favicon.ico", distHTTP)
+
 	router.GET("/", func(ctx *gin.Context) {
 		http.ServeFileFS(ctx.Writer, ctx.Request, dist, "index.html")
 	})
@@ -63,11 +65,11 @@ func SetupRouter(cfg *configs.Config) *gin.Engine {
 	linkGroup := apiV1.Group("/link")
 	{
 		linkGroup.GET("/", linkHandler.CheckOne)
-		linkGroup.GET("/list", linkHandler.ListWithPageSize)
+		linkGroup.POST("/list", linkHandler.ListWithPageSize)
 	}
 
 	router.NoRoute(func(ctx *gin.Context) {
-		ctx.FileFromFS("index.html", distHTTP)
+		ctx.String(404, "页面不存在")
 	})
 
 	return router
