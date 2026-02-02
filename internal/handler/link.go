@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
+	"github.com/gin-gonic/gin"
 	"github.com/zhilv666/linkchecker/internal/service"
 	"github.com/zhilv666/linkchecker/pkg/response"
 )
@@ -18,37 +18,37 @@ func NewLinkHandler(s *service.LinkService) *LinkHandler {
 	}
 }
 
-func (l *LinkHandler) CheckOne(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
+func (l *LinkHandler) CheckOne(ctx *gin.Context) {
+	query := ctx.Request.URL.Query()
 	url := query.Get("url")
 	password := query.Get("password")
 
 	if url == "" {
-		response.Fail(w, 400, "链接不能为空")
+		response.Fail(ctx, 400, "链接不能为空")
 		return
 	}
 
 	linkRecord, err := l.service.CheckOne(url, password)
 	if err != nil {
-		response.Error(w, err)
+		response.Error(ctx, err)
 		return
 	}
 
-	response.Success(w, linkRecord)
+	response.Success(ctx, linkRecord)
 }
 
-func (l *LinkHandler) ListWithPageSize(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
+func (l *LinkHandler) ListWithPageSize(ctx *gin.Context) {
+	query := ctx.Request.URL.Query()
 	pageStr := query.Get("page")
 	sizeStr := query.Get("size")
 	pageInt, err := strconv.Atoi(pageStr)
 	if err != nil {
-		response.Fail(w, 400, err.Error())
+		response.Fail(ctx, 400, err.Error())
 		return
 	}
 	sizeInt, err := strconv.Atoi(sizeStr)
 	if err != nil {
-		response.Fail(w, 400, err.Error())
+		response.Fail(ctx, 400, err.Error())
 		return
 	}
 	if pageInt < 1 {
@@ -62,10 +62,10 @@ func (l *LinkHandler) ListWithPageSize(w http.ResponseWriter, r *http.Request) {
 
 	linkRecord, count, err := l.service.ListWithPageSize(pageInt, sizeInt)
 	if err != nil {
-		response.Error(w, err)
+		response.Error(ctx, err)
 		return
 	}
-	response.Success(w, map[string]any{
+	response.Success(ctx, map[string]any{
 		"list":  linkRecord,
 		"page":  pageInt,
 		"size":  sizeInt,
