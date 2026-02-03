@@ -10,11 +10,13 @@ import (
 	"github.com/zhilv666/linkchecker/configs"
 	dbMod "github.com/zhilv666/linkchecker/internal/db"
 	"github.com/zhilv666/linkchecker/internal/handler"
+	"github.com/zhilv666/linkchecker/internal/middleware"
 	"github.com/zhilv666/linkchecker/internal/service"
 	"github.com/zhilv666/linkchecker/pkg/cache"
 	"github.com/zhilv666/linkchecker/pkg/log"
 	"github.com/zhilv666/linkchecker/web"
 	"go.uber.org/zap"
+	"golang.org/x/time/rate"
 )
 
 func SetupRouter(cfg *configs.Config) *gin.Engine {
@@ -24,6 +26,8 @@ func SetupRouter(cfg *configs.Config) *gin.Engine {
 	linkRepo := dbMod.NewLinkDB(db)
 	linkService := service.NewLinkService(linkRepo, cache)
 	linkHandler := handler.NewLinkHandler(linkService)
+
+	limiter := middleware.NewIPRateLimiter(rate.Every(1*time.Second), 3)
 
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     cfg.Cors.AllowOrigins,
@@ -63,6 +67,7 @@ func SetupRouter(cfg *configs.Config) *gin.Engine {
 
 	apiV1 := router.Group("/api/v1")
 	linkGroup := apiV1.Group("/link")
+	linkGroup.Use(middleware.RateMiddleware(limiter))
 	{
 		linkGroup.GET("/", linkHandler.CheckOne)
 		linkGroup.POST("/list", linkHandler.ListWithPageSize)
