@@ -8,23 +8,29 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/zhilv666/linkchecker/configs"
-	dbMod "github.com/zhilv666/linkchecker/internal/db"
 	"github.com/zhilv666/linkchecker/internal/handler"
 	"github.com/zhilv666/linkchecker/internal/middleware"
+	"github.com/zhilv666/linkchecker/internal/netdisk"
+	"github.com/zhilv666/linkchecker/internal/netdisk/baidu"
+	"github.com/zhilv666/linkchecker/internal/netdisk/quark"
+	"github.com/zhilv666/linkchecker/internal/repo"
 	"github.com/zhilv666/linkchecker/internal/service"
 	"github.com/zhilv666/linkchecker/pkg/cache"
 	"github.com/zhilv666/linkchecker/pkg/log"
+	"github.com/zhilv666/linkchecker/pkg/request"
 	"github.com/zhilv666/linkchecker/web"
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"
+	"gorm.io/gorm"
 )
 
-func SetupRouter(cfg *configs.Config) *gin.Engine {
+func SetupRouter(cfg *configs.Config, db *gorm.DB) *gin.Engine {
 	router := gin.Default()
 	cache := cache.New(&cache.Config{})
-	db := dbMod.GetDB()
-	linkRepo := dbMod.NewLinkDB(db)
-	linkService := service.NewLinkService(linkRepo, cache)
+	client := request.NewRestyClient()
+	manager := netdisk.NewManager(cache, baidu.New(client), quark.New(client))
+	linkRepo := repo.NewLinkRepo(db)
+	linkService := service.NewLinkService(linkRepo, manager)
 	linkHandler := handler.NewLinkHandler(linkService)
 
 	limiter := middleware.NewIPRateLimiter(rate.Every(1*time.Second), 3)
@@ -69,8 +75,8 @@ func SetupRouter(cfg *configs.Config) *gin.Engine {
 	linkGroup := apiV1.Group("/link")
 	linkGroup.Use(middleware.RateMiddleware(limiter))
 	{
-		linkGroup.GET("/", linkHandler.CheckOne)
-		linkGroup.POST("/list", linkHandler.ListWithPageSize)
+		linkGroup.POST("/", linkHandler.CheckOne)
+		linkGroup.GET("/list", linkHandler.ListWithPageSize)
 	}
 
 	router.NoRoute(func(ctx *gin.Context) {

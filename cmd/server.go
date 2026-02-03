@@ -10,8 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/zhilv666/linkchecker/configs"
-	"github.com/zhilv666/linkchecker/internal/db"
 	"github.com/zhilv666/linkchecker/internal/router"
+	"github.com/zhilv666/linkchecker/pkg/db"
 	"github.com/zhilv666/linkchecker/pkg/log"
 	"go.uber.org/zap"
 )
@@ -39,17 +39,26 @@ var serverCmd = &cobra.Command{
 			Compress:  cfg.Log.Compress,
 		})
 
+		db, cleanup, err := db.New(&db.Config{
+			Type:          cfg.Database.Type,
+			DSN:           cfg.Database.GetDSN(),
+			MaxIdleConns:  cfg.Database.MaxIdleConns,
+			MaxOpenConns:  cfg.Database.MaxOpenConns,
+			MaxLifetime:   cfg.Database.MaxLifetime,
+			TablePrefix:   cfg.Database.TablePrefix,
+			SingularTable: cfg.Database.SingularTable,
+			Debug:         cfg.Database.Debug,
+		}, log.GetLogger())
+		if err != nil {
+			log.Fatal("failed to database connection", zap.Error(err))
+		}
+		defer cleanup()
+
 		// 3. 打印调试信息 (此时日志系统已就绪，可以正确写入文件)
 		log.Debug("Server configuration loaded", zap.Any("config", cfg))
 
-		// 4. 初始化数据库
-		if err := db.Init(cfg.Database); err != nil {
-			// 使用 Fatal 记录错误并退出，比 panic 更优雅，且会有 structured log
-			log.Fatal("Failed to initialize database", zap.Error(err))
-		}
-
 		// 5. 初始化路由
-		r := router.SetupRouter(cfg)
+		r := router.SetupRouter(cfg, db)
 
 		// 6. 定义 HTTP Server
 		srv := &http.Server{

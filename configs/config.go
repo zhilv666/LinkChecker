@@ -2,20 +2,33 @@ package configs
 
 import (
 	"path/filepath"
+	"time"
 )
 
 // Database 数据库配置
 type Database struct {
-	Type        string `json:"type" yaml:"type"`
-	Host        string `json:"host" yaml:"host"`
-	Port        int    `json:"port" yaml:"port"`
-	User        string `json:"user" yaml:"user"`
-	Password    string `json:"password" yaml:"password"`
-	Name        string `json:"name" yaml:"name"`
-	DBFile      string `json:"db_file" yaml:"dbFile"`
-	TablePrefix string `json:"table_prefix" yaml:"tablePrefix"`
-	SSLMode     string `json:"ssl_mode" yaml:"sslMode"`
-	DSN         string `json:"dsn" yaml:"dsn"`
+	Type string `json:"type" yaml:"type"` // sqlite3, mysql, postgres
+
+	// --- SQLite 专用 ---
+	DBFile string `json:"db_file" yaml:"dbFile"`
+
+	// --- MySQL / PostgreSQL 专用 ---
+	Host     string `json:"host" yaml:"host"`
+	Port     int    `json:"port" yaml:"port"`
+	User     string `json:"user" yaml:"user"`
+	Password string `json:"password" yaml:"password"`
+	Name     string `json:"name" yaml:"name"`     // 数据库名
+	Params   string `json:"params" yaml:"params"` // 额外参数，如 charset=utf8mb4
+
+	// --- 连接池配置 ---
+	MaxIdleConns int           `json:"max_idle_conns" yaml:"maxIdleConns"`
+	MaxOpenConns int           `json:"max_open_conns" yaml:"maxOpenConns"`
+	MaxLifetime  time.Duration `json:"max_lifetime" yaml:"maxLifetime"`
+
+	// --- GORM 配置 ---
+	TablePrefix   string `json:"table_prefix" yaml:"tablePrefix"`
+	SingularTable bool   `json:"singular_table" yaml:"singularTable"`
+	Debug         bool   `json:"debug" yaml:"debug"`
 }
 
 // Cors 跨域配置
@@ -53,10 +66,13 @@ func DefaultConfig() *Config {
 
 	return &Config{
 		Database: Database{
-			Type:        "sqlite3",
-			Port:        0,
-			TablePrefix: "lc_",
-			DBFile:      dbPath,
+			Type:          "sqlite3",
+			TablePrefix:   "lc_",
+			SingularTable: true,
+			DBFile:        dbPath,
+			MaxIdleConns:  2,
+			MaxOpenConns:  5,
+			MaxLifetime:   0,
 		},
 		Cors: Cors{
 			AllowOrigins: []string{"*"},

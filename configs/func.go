@@ -1,6 +1,7 @@
 package configs
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -78,4 +79,32 @@ func InitConfig() *Config {
 	// 打印加载的配置文件路径 (强制转为正斜杠)
 	log.Infof("已加载配置: %s", filepath.ToSlash(viper.ConfigFileUsed()))
 	return config
+}
+
+// GetDSN 将数据库配置组装为一个 DSN
+func (d *Database) GetDSN() string {
+	switch d.Type {
+	case "mysql":
+		return fmt.Sprintf(
+			"%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local&%s",
+			d.User,
+			d.Password,
+			d.Host,
+			d.Port,
+			d.Name,
+			d.Params)
+	case "postgres":
+		return fmt.Sprintf(
+			"host=%s user=%s password=%s dbname=%s port=%d sslmode=disable TimeZone=Asia/Shanghai %s",
+			d.Host,
+			d.User,
+			d.Password,
+			d.Name,
+			d.Port,
+			d.Params)
+	case "sqlite3":
+		return d.DBFile
+	default:
+		return ""
+	}
 }

@@ -1,48 +1,39 @@
 package service
 
 import (
-	"github.com/zhilv666/linkchecker/internal/db"
+	"context"
+
 	"github.com/zhilv666/linkchecker/internal/model"
 	"github.com/zhilv666/linkchecker/internal/netdisk"
-	"github.com/zhilv666/linkchecker/internal/netdisk/baidu"
-	"github.com/zhilv666/linkchecker/internal/netdisk/quark"
-	"github.com/zhilv666/linkchecker/pkg/cache"
-	"github.com/zhilv666/linkchecker/pkg/log"
-	"github.com/zhilv666/linkchecker/pkg/request"
-	"go.uber.org/zap"
+	"github.com/zhilv666/linkchecker/internal/repo"
 )
 
-type LinkService struct {
-	linkDB *db.LinkDB
-	cache  cache.Cache
+type ILinkService interface {
+	CheckAndSave(ctx context.Context, url, password string) (*model.LinkRecord, error)
+	GetLinkList(ctx context.Context, page, size int, keyword string) ([]*model.LinkRecord, int64, error)
 }
 
-func NewSubManager(cache cache.Cache) *netdisk.Manager {
-	client := request.NewRestyClient()
-	manager := netdisk.NewManager(cache,
-		baidu.New(client),
-		quark.New(client),
-	)
-	return manager
+type linkService struct {
+	repo    repo.ILinkRepo
+	manager *netdisk.Manager
 }
 
-func NewLinkService(l *db.LinkDB, c cache.Cache) *LinkService {
-	return &LinkService{
-		linkDB: l,
-		cache:  c,
+func NewLinkService(repo repo.ILinkRepo, manager *netdisk.Manager) *linkService {
+	return &linkService{repo: repo, manager: manager}
+}
+
+func (s *linkService) CheckAndSave(ctx context.Context, url, password string) (*model.LinkRecord, error) {
+	exist, _ := s.repo.GetByRawUrl(ctx, url)
+	if exist != nil {
+		return exist, nil
 	}
-}
 
-func (ls *LinkService) CheckOne(url, password string) (*model.LinkRecord, error) {
-	manager := NewSubManager(ls.cache)
-	info, err := manager.Check(url, password)
-
+	info, err := s.manager.Check(url, password)
 	if err != nil {
-		log.Error("检测失败", zap.Error(err))
 		return nil, err
 	}
 
-	lr := &model.LinkRecord{
+	newLink := &model.LinkRecord{
 		Provider:  info.Provider,
 		Title:     info.Title,
 		Size:      info.Size,
@@ -50,22 +41,16 @@ func (ls *LinkService) CheckOne(url, password string) (*model.LinkRecord, error)
 		Status:    info.Status,
 		ExpiredAt: info.ExpiredAt,
 		URL:       info.NormalizedUrl,
+		RawURL:    info.RawUrl,
 		PWD:       info.Password,
 	}
-	if info.NormalizedUrl == "" {
-		lr.URL = info.RawUrl
-	}
 
-	err = ls.linkDB.Create(lr)
-
-	if err != nil {
-		log.Error("添加数据失败", zap.Error(err))
+	if err := s.repo.Create(ctx, newLink); err != nil {
 		return nil, err
 	}
-
-	return lr, err
+	return newLink, err
 }
 
-func (ls *LinkService) ListWithPageSize(page, size int, keyword string) ([]model.LinkRecord, int64, error) {
-	return ls.linkDB.List(page, size, keyword)
+func (s *linkService) GetLinkList(ctx context.Context, page, size int, keyword string) ([]*model.LinkRecord, int64, error) {
+	return s.repo.GetList(ctx, page, size, keyword)
 }

@@ -18,7 +18,7 @@ type CheckResp struct {
 }
 
 type ListReq struct {
-	Page    int    `json:"page"`
-	Size    int    `json:"size"`
-	Keyword string `json:"Keyword"`
+	Page    int    `json:"page" form:"page"`
+	Size    int    `json:"size" form:"size"`
+	Keyword string `json:"keyword" form:"keyword"`
 }
