@@ -18,7 +18,7 @@ type QuarkProvider struct {
 
 func New(client *resty.Client) *QuarkProvider {
 	if client == nil {
-		client = request.NewRestyClient()
+		client = request.NewClient(nil)
 	}
 	return &QuarkProvider{
 		pattern: regexp.MustCompile(`\/s\/([^/?#]+)`),

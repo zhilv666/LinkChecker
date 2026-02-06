@@ -9,8 +9,10 @@ import (
 
 type ILinkRepo interface {
 	Create(ctx context.Context, link *model.LinkRecord) error
+	Save(ctx context.Context, link *model.LinkRecord) error
 	GetList(ctx context.Context, page, size int, keyword string) ([]*model.LinkRecord, int64, error)
 	GetByRawUrl(ctx context.Context, url string) (*model.LinkRecord, error)
+	GetByUrl(ctx context.Context, url string) (*model.LinkRecord, error)
 	UpdateStatus(ctx context.Context, id uint, status int) error
 }
 
@@ -24,6 +26,10 @@ func NewLinkRepo(db *gorm.DB) *linkRepo {
 
 func (r *linkRepo) Create(ctx context.Context, link *model.LinkRecord) error {
 	return r.db.WithContext(ctx).Create(&link).Error
+}
+
+func (r *linkRepo) Save(ctx context.Context, link *model.LinkRecord) error {
+	return r.db.WithContext(ctx).Save(link).Error
 }
 
 func (r *linkRepo) GetList(ctx context.Context, page, size int, keyword string) ([]*model.LinkRecord, int64, error) {
@@ -50,6 +56,15 @@ func (r *linkRepo) GetList(ctx context.Context, page, size int, keyword string) 
 }
 
 func (r *linkRepo) GetByRawUrl(ctx context.Context, url string) (*model.LinkRecord, error) {
+	var link model.LinkRecord
+	err := r.db.WithContext(ctx).Model(&model.LinkRecord{}).Where("raw_url = ?", url).First(&link).Error
+	if err != nil {
+		return nil, err
+	}
+	return &link, err
+}
+
+func (r *linkRepo) GetByUrl(ctx context.Context, url string) (*model.LinkRecord, error) {
 	var link model.LinkRecord
 	err := r.db.WithContext(ctx).Model(&model.LinkRecord{}).Where("url = ?", url).First(&link).Error
 	if err != nil {

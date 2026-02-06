@@ -3,6 +3,8 @@ package configs
 import (
 	"path/filepath"
 	"time"
+
+	"github.com/zhilv666/linkchecker/pkg/common"
 )
 
 // Database 数据库配置
@@ -48,8 +50,15 @@ type Log struct {
 	Compress  bool   `json:"compress" yaml:"compress"`
 }
 
+type Server struct {
+	Port  int    `json:"port" yaml:"port"`
+	Debug bool   `json:"debug" yaml:"debug"`
+	Token string `json:"token" yaml:"token"`
+}
+
 // Config 总配置
 type Config struct {
+	Server   Server   `json:"server" yaml:"server"`
 	Database Database `json:"database" yaml:"database"`
 	Cors     Cors     `json:"cors" yaml:"cors"`
 	Log      Log      `json:"log" yaml:"log"`
@@ -65,6 +74,11 @@ func DefaultConfig() *Config {
 	logPath := filepath.Join(logsDir, "app.log")
 
 	return &Config{
+		Server: Server{
+			Port:  8080,
+			Debug: false,
+			Token: common.Rand(16),
+		},
 		Database: Database{
 			Type:          "sqlite3",
 			TablePrefix:   "lc_",

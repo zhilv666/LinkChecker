@@ -24,7 +24,7 @@ type BaiduProvider struct {
 
 func New(client *resty.Client) *BaiduProvider {
 	if client == nil {
-		client = request.NewRestyClient()
+		client = request.NewClient(nil)
 	}
 	return &BaiduProvider{
 		patternS:       regexp.MustCompile(`baidu\.com\/s\/([a-zA-Z0-9_-]+)`),
@@ -70,7 +70,7 @@ func (b *BaiduProvider) Check(rawUrl, password string) (*netdisk.ShareInfo, erro
 
 	// 验证密码
 	var verifyResp baiduVerifyResp
-	_, err = client.
+	resp0, err := client.
 		R().
 		SetQueryParams(map[string]string{
 			"surl": shareID[1:],
@@ -92,6 +92,10 @@ func (b *BaiduProvider) Check(rawUrl, password string) (*netdisk.ShareInfo, erro
 		if verifyResp.Errno == -9 {
 			return &netdisk.ShareInfo{Status: netdisk.StatusNeedPassword, RawUrl: rawUrl}, nil
 		}
+		// 密码错误
+		if verifyResp.Errno == -12 {
+			return &netdisk.ShareInfo{Status: netdisk.StatusNeedPassword, RawUrl: rawUrl}, nil
+		}
 		// 链接错误
 		if verifyResp.Errno == 105 {
 			return &netdisk.ShareInfo{Status: netdisk.StatusUnknown, RawUrl: rawUrl}, fmt.Errorf("百度错误码: %d (%s)  -- 可能是链接错误", verifyResp.Errno, verifyResp.ErrMsg)
@@ -102,6 +106,7 @@ func (b *BaiduProvider) Check(rawUrl, password string) (*netdisk.ShareInfo, erro
 	// 获取数据
 	resp, err := client.
 		R().
+		SetCookies(resp0.Cookies()).
 		Get("https://pan.baidu.com/s/" + shareID)
 	if err != nil {
 		return &netdisk.ShareInfo{Status: netdisk.StatusUnknown, RawUrl: rawUrl}, nil

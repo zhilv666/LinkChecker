@@ -2,20 +2,21 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/zhilv666/linkchecker/internal/dto"
 	"github.com/zhilv666/linkchecker/internal/service"
 	"github.com/zhilv666/linkchecker/pkg/response"
 )
 
 type LinkHandler struct {
-	svc service.ILinkService
+	svc *service.LinkService
 }
 
-func NewLinkHandler(svc service.ILinkService) *LinkHandler {
+func NewLinkHandler(svc *service.LinkService) *LinkHandler {
 	return &LinkHandler{svc: svc}
 }
 
 func (h *LinkHandler) CheckOne(ctx *gin.Context) {
-	var req CheckReq
+	var req dto.CheckReq
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		response.Fail(ctx, 400, "参数错误")
 		return
@@ -36,8 +37,8 @@ func (h *LinkHandler) CheckOne(ctx *gin.Context) {
 }
 
 func (h *LinkHandler) ListWithPageSize(ctx *gin.Context) {
-	var req ListReq
-	if err := ctx.ShouldBindQuery(&req); err != nil {
+	var req dto.ListReq
+	if err := ctx.ShouldBindJSON(&req); err != nil {
 		response.Fail(ctx, 400, "参数错误")
 		return
 	}
@@ -63,4 +64,19 @@ func (h *LinkHandler) ListWithPageSize(ctx *gin.Context) {
 		"keyword": req.Keyword,
 		"count":   count,
 	})
+}
+
+func (h *LinkHandler) Report(ctx *gin.Context) {
+	var req dto.ReportReq
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		response.Fail(ctx, 400, "参数错误")
+		return
+	}
+
+	err := h.svc.SaveResult(ctx, &req)
+	if err != nil {
+		response.Fail(ctx, 500, err.Error())
+		return
+	}
+	response.Success(ctx, nil)
 }

@@ -3,43 +3,31 @@ package router
 import (
 	"io/fs"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/zhilv666/linkchecker/configs"
-	"github.com/zhilv666/linkchecker/internal/handler"
+	"github.com/zhilv666/linkchecker/internal/app"
 	"github.com/zhilv666/linkchecker/internal/middleware"
-	"github.com/zhilv666/linkchecker/internal/netdisk"
-	"github.com/zhilv666/linkchecker/internal/netdisk/baidu"
-	"github.com/zhilv666/linkchecker/internal/netdisk/quark"
-	"github.com/zhilv666/linkchecker/internal/repo"
-	"github.com/zhilv666/linkchecker/internal/service"
-	"github.com/zhilv666/linkchecker/pkg/cache"
 	"github.com/zhilv666/linkchecker/pkg/log"
-	"github.com/zhilv666/linkchecker/pkg/request"
 	"github.com/zhilv666/linkchecker/web"
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"
-	"gorm.io/gorm"
 )
 
-func SetupRouter(cfg *configs.Config, db *gorm.DB) *gin.Engine {
+func SetupRouter(cfg *configs.Config, logger *zap.Logger, app *app.AppContainer) *gin.Engine {
 	router := gin.Default()
-	cache := cache.New(&cache.Config{})
-	client := request.NewRestyClient()
-	manager := netdisk.NewManager(cache, baidu.New(client), quark.New(client))
-	linkRepo := repo.NewLinkRepo(db)
-	linkService := service.NewLinkService(linkRepo, manager)
-	linkHandler := handler.NewLinkHandler(linkService)
 
 	limiter := middleware.NewIPRateLimiter(rate.Every(1*time.Second), 3)
+	tokener := middleware.TokenMiddleware(cfg.Server.Token)
 
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     cfg.Cors.AllowOrigins,
 		AllowMethods:     cfg.Cors.AllowMethods,
 		AllowHeaders:     cfg.Cors.AllowHeaders,
-		ExposeHeaders:    []string{"Context-Length"},
+		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
@@ -49,23 +37,13 @@ func SetupRouter(cfg *configs.Config, db *gorm.DB) *gin.Engine {
 		log.Fatal("failed to read dist dir", zap.Error(err))
 	}
 	distHTTP := http.FS(dist)
-	subJs, err := fs.Sub(dist, "js")
-	if err != nil {
-		log.Fatal("failed to read js dir in dist", zap.Error(err))
-	}
-	router.StaticFS("/js", http.FS(subJs))
-
-	subAssets, err := fs.Sub(dist, "assets")
-	if err != nil {
-		log.Fatal("failed to read assets dir in dist", zap.Error(err))
-	}
-	router.StaticFS("/assets", http.FS(subAssets))
-
+	router.StaticFS("/js", http.FS(mustSub(dist, "js")))
+	router.StaticFS("/assets", http.FS(mustSub(dist, "assets")))
 	router.StaticFileFS("/favicon.ico", "favicon.ico", distHTTP)
 
-	router.GET("/", func(ctx *gin.Context) {
-		http.ServeFileFS(ctx.Writer, ctx.Request, dist, "index.html")
-	})
+	// router.GET("/", func(ctx *gin.Context) {
+	// 	http.ServeFileFS(ctx.Writer, ctx.Request, dist, "index.html")
+	// })
 
 	router.GET("/ping", func(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "pong")
@@ -75,13 +53,29 @@ func SetupRouter(cfg *configs.Config, db *gorm.DB) *gin.Engine {
 	linkGroup := apiV1.Group("/link")
 	linkGroup.Use(middleware.RateMiddleware(limiter))
 	{
-		linkGroup.POST("/", linkHandler.CheckOne)
-		linkGroup.GET("/list", linkHandler.ListWithPageSize)
+		linkGroup.POST("/", app.LinkHandler.CheckOne)
+		linkGroup.POST("/list", app.LinkHandler.ListWithPageSize)
 	}
+	apiV1.POST("/report", tokener, app.LinkHandler.Report)
 
 	router.NoRoute(func(ctx *gin.Context) {
-		ctx.String(404, "页面不存在")
+		if strings.HasPrefix(ctx.Request.URL.Path, "/api") {
+			ctx.JSON(404, gin.H{"code": 404, "msg": "API not found"})
+			return
+		}
+		ctx.Header("Content-Type", "text/html; charset=utf-8")
+		http.ServeFileFS(ctx.Writer, ctx.Request, dist, "index.html")
 	})
 
 	return router
+}
+
+// 辅助函数：简化 fs.Sub 的错误处理
+func mustSub(f fs.FS, dir string) fs.FS {
+	sub, err := fs.Sub(f, dir)
+	if err != nil {
+		// 静态资源缺失属于启动严重错误，直接 Panic 没问题
+		panic("failed to find static dir: " + dir)
+	}
+	return sub
 }

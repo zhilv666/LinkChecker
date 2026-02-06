@@ -18,7 +18,7 @@ type LinkRecord struct {
 	ExpiredAt *time.Time          `json:"expired_at"`
 	URL       string              `gorm:"uniqueIndex;type:text" json:"url"`
 	PWD       string              `gorm:"type:text" json:"pwd"`
-	RawURL    string              `gorm:"type:text" json:"raw_url"`
+	RawURL    []string            `gorm:"type:text;serializer:json" json:"raw_url"`
 }
 
 // 增加这个方法，Go 的模板可以直接调用它
