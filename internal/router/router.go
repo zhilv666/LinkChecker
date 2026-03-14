@@ -41,9 +41,9 @@ func SetupRouter(cfg *configs.Config, logger *zap.Logger, app *app.AppContainer)
 	router.StaticFS("/assets", http.FS(mustSub(dist, "assets")))
 	router.StaticFileFS("/favicon.ico", "favicon.ico", distHTTP)
 
-	// router.GET("/", func(ctx *gin.Context) {
-	// 	http.ServeFileFS(ctx.Writer, ctx.Request, dist, "index.html")
-	// })
+	router.GET("/", func(ctx *gin.Context) {
+		http.ServeFileFS(ctx.Writer, ctx.Request, dist, "index.html")
+	})
 
 	router.GET("/ping", func(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "pong")
@@ -74,7 +74,6 @@ func SetupRouter(cfg *configs.Config, logger *zap.Logger, app *app.AppContainer)
 func mustSub(f fs.FS, dir string) fs.FS {
 	sub, err := fs.Sub(f, dir)
 	if err != nil {
-		// 静态资源缺失属于启动严重错误，直接 Panic 没问题
 		panic("failed to find static dir: " + dir)
 	}
 	return sub
