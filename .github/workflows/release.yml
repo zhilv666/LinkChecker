@@ -209,6 +209,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: dist
+          pattern: "!web-dist"
           merge-multiple: true
 
       - name: Generate checksums
@@ -216,7 +217,7 @@ jobs:
         run: |
           set -euo pipefail
           cd dist
-          sha256sum * > checksums.txt
+          find . -maxdepth 1 -type f -print0 | sort -z | xargs -0 sha256sum > checksums.txt
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
