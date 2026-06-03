@@ -180,18 +180,18 @@ jobs:
           short_commit="${GIT_COMMIT::7}"
           output="${APP_NAME}_${VERSION}_${GOOS}_${GOARCH}${EXT}"
 
-          ldflags=(
-            "-s"
-            "-w"
-            "-X" "github.com/zhilv666/linkchecker/internal/conf.Version=${VERSION}"
-            "-X" "github.com/zhilv666/linkchecker/internal/conf.BuildAt=${build_time}"
-            "-X" "github.com/zhilv666/linkchecker/internal/conf.GitAuthor=github-actions[bot]"
-            "-X" "github.com/zhilv666/linkchecker/internal/conf.GitEmail=41898282+github-actions[bot]@users.noreply.github.com"
-            "-X" "github.com/zhilv666/linkchecker/internal/conf.GitCommit=${short_commit}"
-          )
+          ldflags="
+          -s -w
+          -X github.com/zhilv666/linkchecker/internal/conf.Version=${VERSION}
+          -X github.com/zhilv666/linkchecker/internal/conf.BuildAt=${build_time}
+          -X github.com/zhilv666/linkchecker/internal/conf.GitAuthor=github-actions[bot]
+          -X github.com/zhilv666/linkchecker/internal/conf.GitEmail=41898282+github-actions[bot]@users.noreply.github.com
+          -X github.com/zhilv666/linkchecker/internal/conf.GitCommit=${short_commit}
+          "
+          ldflags="$(echo "${ldflags}" | xargs)"
 
           export CGO_ENABLED=0
-          go build -trimpath -ldflags "${ldflags[*]}" -o "dist/${output}" .
+          go build -trimpath -ldflags "${ldflags}" -o "dist/${output}" .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
