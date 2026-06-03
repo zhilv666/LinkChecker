@@ -181,6 +181,11 @@ MIT（见 `LICENSE`）。
 
 `Release` workflow 会先拉取前端仓库 `https://gitea.kmux.cn/zhilv/linkcheck-fe.git` 的 `main` 分支，构建产物后写入 `web/dist`，再执行 Go 测试和多平台发布。
 
+如果前端仓库是私有仓库，还需要在当前 GitHub 仓库 `Settings -> Secrets and variables -> Actions` 中配置：
+
+- `FRONTEND_GIT_USERNAME`
+- `FRONTEND_GIT_TOKEN`
+
 - 在 GitHub Actions 中手动运行 `Create Release Tag`
 - 输入版本号，例如 `v1.2.3`
 - Workflow 会创建并推送对应 tag
