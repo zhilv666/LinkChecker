@@ -179,11 +179,13 @@ MIT（见 `LICENSE`）。
 
 使用前请先在仓库 `Settings -> Actions -> General -> Workflow permissions` 中启用 `Read and write permissions`，否则 workflow 无法推送 tag 或创建 release。
 
+`Release` workflow 会先拉取前端仓库 `https://gitea.kmux.cn/zhilv/linkcheck-fe.git` 的 `main` 分支，构建产物后写入 `web/dist`，再执行 Go 测试和多平台发布。
+
 - 在 GitHub Actions 中手动运行 `Create Release Tag`
 - 输入版本号，例如 `v1.2.3`
 - Workflow 会创建并推送对应 tag
 - tag 推送后会自动触发 `Release`
-- `Release` 会执行测试、构建多平台二进制，并创建 GitHub Release
+- `Release` 会先构建前端，再执行测试、构建多平台二进制，并创建 GitHub Release
 
 当前发布产物包含：
 
