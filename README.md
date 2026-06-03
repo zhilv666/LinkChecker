@@ -180,6 +180,7 @@ MIT（见 `LICENSE`）。
 使用前请先在仓库 `Settings -> Actions -> General -> Workflow permissions` 中启用 `Read and write permissions`，否则 workflow 无法推送 tag 或创建 release。
 
 `Release` workflow 会先拉取前端仓库 `https://gitea.kmux.cn/zhilv/linkcheck-fe.git` 的 `main` 分支，构建产物后写入 `web/dist`，再执行 Go 测试和多平台发布。
+为降低公网链路抖动影响，workflow 会在拉取前端仓库时强制使用 `HTTP/1.1` 并自动重试。
 
 如果前端仓库是私有仓库，还需要在当前 GitHub 仓库 `Settings -> Secrets and variables -> Actions` 中配置：
 

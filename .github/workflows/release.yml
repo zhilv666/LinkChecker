@@ -49,8 +49,26 @@ jobs:
 
           rm -rf web/frontend
           auth_header="$(printf '%s:%s' "${FRONTEND_GIT_USERNAME}" "${FRONTEND_GIT_TOKEN}" | base64 | tr -d '\n')"
-          git -c http.extraHeader="Authorization: Basic ${auth_header}" \
-            clone --depth=1 --branch "${FRONTEND_REF}" "${FRONTEND_REPO}" web/frontend
+          git config --global http.version HTTP/1.1
+
+          max_attempts=5
+          for attempt in $(seq 1 "${max_attempts}"); do
+            echo "Clone frontend attempt ${attempt}/${max_attempts}"
+
+            if git -c http.extraHeader="Authorization: Basic ${auth_header}" \
+              clone --depth=1 --branch "${FRONTEND_REF}" "${FRONTEND_REPO}" web/frontend; then
+              echo "Frontend repository cloned successfully"
+              break
+            fi
+
+            if [[ "${attempt}" -eq "${max_attempts}" ]]; then
+              echo "Failed to clone frontend repository after ${max_attempts} attempts"
+              exit 1
+            fi
+
+            rm -rf web/frontend
+            sleep $((attempt * 5))
+          done
 
       - name: Install frontend dependencies
         working-directory: web/frontend
