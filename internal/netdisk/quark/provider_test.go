@@ -11,6 +11,8 @@ import (
 	"resty.dev/v3"
 )
 
+var quarkTestLocation = time.FixedZone("UTC+8", 8*60*60)
+
 func TestBaiduProvider_Check(t *testing.T) {
 	client := resty.New()
 
@@ -156,28 +158,30 @@ func TestBaiduProvider_Check(t *testing.T) {
 				assert.NotNil(t, info.ExpiredAt, "过期时间为空")
 
 				if tt.wantExpired == "永久有效" {
-					now := time.Now()
+					now := time.Now().In(quarkTestLocation)
 
 					// 重新构建预期的 "100年后 1月1日"
-					expectedTime := time.Date(now.Year()+100, 1, 1, 0, 0, 0, 0, now.Location())
+					expectedTime := time.Date(now.Year()+100, 1, 1, 0, 0, 0, 0, quarkTestLocation)
+					actualTime := info.ExpiredAt.In(quarkTestLocation)
 
 					// 比较年份、月份、日期即可，避免微妙的时间差（虽然 Date 构造应该很稳）
-					assert.Equal(t, expectedTime.Year(), info.ExpiredAt.Year())
-					assert.Equal(t, expectedTime.Month(), info.ExpiredAt.Month())
-					assert.Equal(t, expectedTime.Day(), info.ExpiredAt.Day())
+					assert.Equal(t, expectedTime.Year(), actualTime.Year())
+					assert.Equal(t, expectedTime.Month(), actualTime.Month())
+					assert.Equal(t, expectedTime.Day(), actualTime.Day())
 					return
 				}
 
-				ts, err := time.Parse("2006-01-02 15:04:05", tt.wantExpired)
+				ts, err := time.ParseInLocation("2006-01-02 15:04:05", tt.wantExpired, quarkTestLocation)
 				if tt.wantErr {
 					assert.Error(t, err)
 					return
 				}
 				assert.NoError(t, err)
+				actualTime := info.ExpiredAt.In(quarkTestLocation)
 
-				assert.Equal(t, ts.Year(), info.ExpiredAt.Year())
-				assert.Equal(t, ts.Month(), info.ExpiredAt.Month())
-				assert.Equal(t, ts.Day(), info.ExpiredAt.Day())
+				assert.Equal(t, ts.Year(), actualTime.Year())
+				assert.Equal(t, ts.Month(), actualTime.Month())
+				assert.Equal(t, ts.Day(), actualTime.Day())
 			}
 		})
 	}
