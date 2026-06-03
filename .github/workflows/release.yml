@@ -176,7 +176,7 @@ jobs:
 
           mkdir -p dist
 
-          build_time="$(date -u +'%Y-%m-%d %H:%M:%S')"
+          build_time="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           short_commit="${GIT_COMMIT::7}"
           output="${APP_NAME}_${VERSION}_${GOOS}_${GOARCH}${EXT}"
 
