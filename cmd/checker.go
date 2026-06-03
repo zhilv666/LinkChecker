@@ -70,7 +70,7 @@ func (a *AgentChecker) RunArgsMode(urls []string) {
 		go func(u string) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			fmt.Printf("url: ", u)
+			fmt.Printf("url: %s\n", u)
 			a.processOne(u, "")
 		}(url)
 	}

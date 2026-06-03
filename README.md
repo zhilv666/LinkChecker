@@ -172,3 +172,21 @@ go run . version
 ## License
 
 MIT（见 `LICENSE`）。
+
+## GitHub 自动发布
+
+仓库已支持基于 GitHub Actions 的自动打标签发布：
+
+使用前请先在仓库 `Settings -> Actions -> General -> Workflow permissions` 中启用 `Read and write permissions`，否则 workflow 无法推送 tag 或创建 release。
+
+- 在 GitHub Actions 中手动运行 `Create Release Tag`
+- 输入版本号，例如 `v1.2.3`
+- Workflow 会创建并推送对应 tag
+- tag 推送后会自动触发 `Release`
+- `Release` 会执行测试、构建多平台二进制，并创建 GitHub Release
+
+当前发布产物包含：
+
+- Linux：`amd64`、`arm64`、`386`、`armv7`
+- Windows：`amd64`、`386`、`arm64`
+- macOS：`amd64`、`arm64`
